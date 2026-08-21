@@ -32,7 +32,7 @@ def check(name: str, status: str, detail: str = "") -> None:
 
 
 def _sha(path: pathlib.Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()[:16]
 
 
 def _load_json(path: pathlib.Path):
@@ -77,7 +77,7 @@ def smoke() -> None:
     # NOTE: pyproject sets addopts="-q". Passing -q again yields -qq, which hides the
     # summary line. Use -rN + --tb=no and let the configured -q stand.
     proc = subprocess.run(
-        [sys.executable, "-m", "pytest", str(ROOT / "tests"), "--tb=no", "-rN"],
+        [sys.executable, "-m", "pytest", str(ROOT / "tests"), "--basetemp=.pytest_tmp", "--tb=no", "-rN"],
         capture_output=True, text=True, cwd=ROOT)
     lines = [l.strip() for l in (proc.stdout or proc.stderr).splitlines() if l.strip()]
     # The last line may be pytest's progress dots; the summary is the line that reports
@@ -247,6 +247,11 @@ def full() -> None:
 
 
 def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     ap = argparse.ArgumentParser()
     ap.add_argument("--smoke", action="store_true", help="imports + data + tests only")
     args = ap.parse_args()
